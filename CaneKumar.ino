@@ -212,14 +212,16 @@ void setup() {
   sing(1, true);
   Serial.begin(9600);
 }
-// todo:
-//  - just sweeping mode
-//  - just distance sensing/adjusting mode
-//  - combined (maybe)
+// two modes:
+//  - sweeping/oscillating mode
+//   - doesn't use HCSR04s, hardcoded adjusting velocity
+//  - distance adjusting mode
+//   - uses HCSR04, by default no voltage to moro.
 void loop() {
-  // v = v_max*sin(t)
+  // v = v_max*sin(2pi * t/period)
   // positive velocity -> m1 HIGH m2 LOW
   // negative velocity -> m1 LOW m2 HIGH
+  // modeSweep determines whether or not the motor will oscillate.
   boolean modeSweep = false;
   while (true) {
     if (modeSweep) {
@@ -242,12 +244,12 @@ void loop() {
         lastVelocity = v;
         delay(ms_inc);
         t++;
-    
       }
     } else {
       // d1 -> leftmost
       // d3 -> rightmost
       while (true) {
+        // average distances to account for calibration errors
         int avgd1 = averageDistances(echo1, trig1, 3);
         int avgd2 = averageDistances(echo2, trig2, 3);
         int avgd3 = averageDistances(echo3, trig3, 3);
@@ -262,7 +264,7 @@ void loop() {
             writeMotor(LOW, HIGH, 255);
             sing(2, true);
           }
-          delay(1000);
+//          delay(500);
         } else {
           writeMotor(LOW, LOW, 0);
         }
@@ -330,9 +332,7 @@ void sing(int s, bool su) {
       buzz(melodyPin, 0, noteDuration);
 
     }
-
   } else {
-
     int size = sizeof(melody) / sizeof(int);
     for (int thisNote = 0; thisNote < size/2; thisNote++) {
 
@@ -355,14 +355,16 @@ void sing(int s, bool su) {
   }
 }
 
+// buzz() buzzes the pin at at certain frequency for a certain 
+// amount of time.
 void buzz(int targetPin, long frequency, long length) {
   digitalWrite(13, HIGH);
   long delayValue = 1000000 / frequency / 2; // calculate the delay value between transitions
-  //// 1 second's worth of microseconds, divided by the frequency, then split in half since
-  //// there are two phases to each cycle
+  // 1 second's worth of microseconds, divided by the frequency, then split in half since
+  // there are two phases to each cycle
   long numCycles = frequency * length / 1000; // calculate the number of cycles for proper timing
-  //// multiply frequency, which is really cycles per second, by the number of seconds to
-  //// get the total number of cycles to produce
+  // multiply frequency, which is really cycles per second, by the number of seconds to
+  // get the total number of cycles to produce
   for (long i = 0; i < numCycles; i++) { // for the calculated length of time...
     digitalWrite(targetPin, HIGH); // write the buzzer pin high to push out the diaphram
     delayMicroseconds(delayValue); // wait for the calculated delay value
